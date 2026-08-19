@@ -1,0 +1,6 @@
+# .gitignore
+.ipynb_checkpoints/
+__pycache__/
+postgres_data/
+*.parquet
+.env

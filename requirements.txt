@@ -1,0 +1,5 @@
+prefect>=3.0.0
+playwright
+pandas
+sqlalchemy
+psycopg2-binary
