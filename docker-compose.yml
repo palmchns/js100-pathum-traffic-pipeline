@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: js100_postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: securepassword123
+      POSTGRES_DB: traffic_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d traffic_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 🌊 เพิ่ม Prefect Server สำหรับควบคุมคิวและดูหน้า Web UI
+  prefect:
+    image: prefecthq/prefect:3-latest
+    container_name: js100_prefect_server
+    command: prefect server start --host 0.0.0.0
+    environment:
+      - PREFECT_UI_API_URL=http://localhost:4200/api
+    ports:
+      - "4200:4200"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:4200/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  jupyter:
+    image: jupyter/scipy-notebook:latest
+    container_name: js100_jupyter
+    user: root
+    environment:
+      - JUPYTER_TOKEN=admin
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/home/jovyan/work
+
+  scraper:
+    build: .
+    container_name: js100_prefect_scraper
+    restart: on-failure
+    depends_on:
+      db:
+        condition: service_healthy
+      prefect:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: securepassword123
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: traffic_db
+      # 🎯 บังคับให้ Scraper ส่ง Log ไปโชว์ที่หน้าจอ Prefect Server
+      PREFECT_API_URL: http://prefect:4200/api
+
+volumes:
+  postgres_data:
